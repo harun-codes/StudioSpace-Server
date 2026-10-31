@@ -30,12 +30,28 @@ app.get("/studios", async (req, res) => {
     res.status(200).json(result);
   } catch (error) {
     console.error(error);
-
     res.status(500).json({
       message: "Failed to fetch studios"
     });
   }
 });
+
+app.get("/featured-studios", async (req, res) => {
+  try {
+    const result = await studiosCollection
+      .find({ isActive: { $ne: false } })
+      .sort({ rating: -1, createdAt: -1 })
+      .limit(6)
+      .toArray();
+
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to fetch featured studios",
+    });
+  }
+});
+
 
 
 app.get('/', (req,res) => {
