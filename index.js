@@ -1,5 +1,5 @@
 import express from 'express'
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 import 'dotenv/config'
 import cors from 'cors'
 const app = express();
@@ -51,6 +51,25 @@ app.get("/featured-studios", async (req, res) => {
     });
   }
 });
+
+app.get("/studios/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const studio = await studiosCollection.findOne({
+      _id: new ObjectId(id),
+      isActive: { $ne: false },
+    });
+
+    res.status(200).json(studio);
+
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to fetch studio details",
+    });
+  }
+});
+
 
 
 
