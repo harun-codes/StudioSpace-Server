@@ -72,6 +72,19 @@ app.get("/studios/:id", async (req, res) => {
 
 
 
+app.post("/add-studios", async (req, res) => {
+  try {
+    const studioData = req.body;  
+    const result = await studiosCollection.insertOne(studioData);
+    res.status(201).json(result);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to create studio",
+    });
+  }
+});
+
+
 
 app.get('/', (req,res) => {
     res.send('Server is Running Fine')
