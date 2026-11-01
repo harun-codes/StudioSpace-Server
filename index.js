@@ -109,6 +109,25 @@ app.get("/my-listings", async (req, res) => {
 
 
 
+app.patch('/my-listings/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updatedData = req.body;
+    const result = await studiosCollection.updateOne(
+        {
+            _id: new ObjectId(id)
+        },
+        { $set: updatedData }
+    )
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to update studio listing",
+    });
+  }
+})
+
+
 app.get('/', (req,res) => {
     res.send('Server is Running Fine')
 })
