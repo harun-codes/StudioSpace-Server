@@ -85,6 +85,29 @@ app.post("/add-studios", async (req, res) => {
 });
 
 
+app.get("/my-listings", async (req, res) => {
+  try {
+    const { ownerEmail } = req.query;
+
+    if (!ownerEmail || typeof ownerEmail !== "string") {
+      return res.status(400).json({
+        message: "Owner email is required",
+      });
+    }
+
+    const studios = await studiosCollection
+      .find({ ownerEmail })
+      .toArray();
+
+    res.status(200).json(studios);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to fetch studio listings",
+    });
+  }
+});
+
+
 
 app.get('/', (req,res) => {
     res.send('Server is Running Fine')
