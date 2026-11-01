@@ -128,6 +128,20 @@ app.patch('/my-listings/:id', async (req, res) => {
 })
 
 
+app.delete('/my-listings/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await studiosCollection.deleteOne({ _id: new ObjectId(id) });
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to delete studio listing",
+    });
+  }
+})
+
+
+
 app.get('/', (req,res) => {
     res.send('Server is Running Fine')
 })
