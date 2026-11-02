@@ -22,6 +22,8 @@ export async function connectToMongoDB() {
 const mongoClient = await connectToMongoDB();
 const db = mongoClient.db("StudioSpace");
 const studiosCollection = db.collection("studios");
+const bookingsCollection = db.collection("bookings");
+
 
 app.get("/studios", async (req, res) => {
   try {
@@ -71,7 +73,6 @@ app.get("/studios/:id", async (req, res) => {
 });
 
 
-
 app.post("/add-studios", async (req, res) => {
   try {
     const studioData = req.body;  
@@ -108,7 +109,6 @@ app.get("/my-listings", async (req, res) => {
 });
 
 
-
 app.patch('/my-listings/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -142,6 +142,150 @@ app.delete('/my-listings/:id', async (req, res) => {
 
 
 
+app.post("/bookings", async (req, res) => {
+  try {
+    const {
+      studioId,
+      bookingDate,
+      startTime,
+      endTime,
+      userName,
+      userEmail,
+    } = req.body;
+
+    if (
+      !ObjectId.isValid(studioId) ||
+      !bookingDate ||
+      !/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime) ||
+      !/^([01]\d|2[0-3]):[0-5]\d$/.test(endTime) ||
+      startTime >= endTime ||
+      !userName ||
+      !userEmail
+    ) {
+      return res.status(400).json({
+        message: "Invalid booking information",
+      });
+    }
+
+    const studio = await studiosCollection.findOne({
+      _id: new ObjectId(studioId),
+    });
+
+    if (!studio) {
+      return res.status(404).json({
+        message: "Studio not found",
+      });
+    }
+
+    const overlap = await bookingsCollection.findOne({
+      studioId,
+      bookingDate,
+      status: "Confirmed",
+      startTime: { $lt: endTime },
+      endTime: { $gt: startTime },
+    });
+
+    if (overlap) {
+      return res.status(409).json({
+        message: "This time slot is already booked. Please choose another time.",
+      });
+    }
+
+    const [startHour, startMinute] = startTime.split(":").map(Number);
+    const [endHour, endMinute] = endTime.split(":").map(Number);
+
+    const durationHours =
+      (endHour * 60 + endMinute - startHour * 60 - startMinute) / 60;
+
+    const bookingData = {
+      studioId,
+      studioTitle: studio.title,
+      bookingDate,
+      startTime,
+      endTime,
+      durationHours,
+      hourlyRate: studio.hourlyRate,
+      totalPrice: durationHours * studio.hourlyRate,
+      userName,
+      userEmail: userEmail.trim().toLowerCase(),
+      status: "Pending",
+      createdAt: new Date(),
+    };
+
+    const result = await bookingsCollection.insertOne(bookingData);
+
+    res.status(201).json(result);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to create booking",
+    });
+  }
+});
+
+
+app.get("/my-bookings", async (req, res) => {
+  try {
+    const { userEmail } = req.query;
+
+    if (!userEmail || typeof userEmail !== "string") {
+      return res.status(400).json({
+        message: "User email is required",
+      });
+    }
+
+    const bookings = await bookingsCollection
+      .find({ userEmail: userEmail.trim().toLowerCase() })
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    res.status(200).json(bookings);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to fetch bookings",
+    });
+  }
+});
+
+
+
+app.patch("/my-bookings/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({
+        message: "Invalid booking ID",
+      });
+    }
+
+    const result = await bookingsCollection.updateOne(
+      {
+        _id: new ObjectId(id),
+        status: "Pending",
+      },
+      {
+        $set: { status: "Cancelled" },
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(409).json({
+        message: "Only pending bookings can be cancelled",
+      });
+    }
+
+    res.status(200).json({
+      message: "Booking cancelled successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to cancel booking",
+    });
+  }
+});
+
+
+
 app.get('/', (req,res) => {
     res.send('Server is Running Fine')
 })
@@ -149,3 +293,4 @@ app.get('/', (req,res) => {
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 })
+
