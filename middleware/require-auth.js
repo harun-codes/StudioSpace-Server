@@ -1,14 +1,16 @@
 
 import { createRemoteJWKSet, jwtVerify } from "jose";
 
-const AUTH_BASE_URL = process.env.CLIENT_URL?.replace(/\/+$/, "");
+const CLIENT_URL = process.env.CLIENT_URL?.trim();
 
-if (!AUTH_BASE_URL) {
+if (!CLIENT_URL) {
   throw new Error("CLIENT_URL is missing.");
 }
 
+const AUTH_ISSUER = new URL(CLIENT_URL).href;
+
 const JWKS = createRemoteJWKSet(
-  new URL("/api/auth/jwks", `${AUTH_BASE_URL}/`)
+  new URL("/api/auth/jwks", AUTH_ISSUER)
 );
 
 export const verifyToken = async (req, res, next) => {
@@ -30,8 +32,8 @@ export const verifyToken = async (req, res, next) => {
 
   try {
     const { payload } = await jwtVerify(token, JWKS, {
-      issuer: AUTH_BASE_URL,
-      audience: AUTH_BASE_URL,
+      issuer: AUTH_ISSUER,
+      audience: AUTH_ISSUER,
     });
 
     const userId =
@@ -63,7 +65,10 @@ export const verifyToken = async (req, res, next) => {
 
     return next();
   } catch (error) {
-    console.error("JWT verification failed:", error.message);
+    console.error(
+      "JWT verification failed:",
+      error.message
+    );
 
     return res.status(401).json({
       message: "Invalid or expired authentication token.",
